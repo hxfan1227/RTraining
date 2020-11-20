@@ -1,12 +1,16 @@
 Package: RTraining
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Online R Training Course
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Authors@R: c(
+  person("Hongxiang", "Fan",
+         email = "hxfan@niglas.ac.cn",
+         role = c("aut", "cre"),
+         comment = c(ORCID = '0000-0001-7626-1344'))
+  )
+Maintainer: Hongxiang Fan <hxfan@niglas.ac.cn>
+Description: Online R Training Course
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Suggests: 

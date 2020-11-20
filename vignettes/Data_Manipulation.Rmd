@@ -1,0 +1,349 @@
+---
+title: "Data Manipulation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Data Manipulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, 
+                      message = FALSE, comment = '#>',
+                      fig.align = 'center')
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(purrr)
+library(lubridate)
+library(nycflights13)
+```
+
+# 数据转换
+
+## dplyr基础
+
+- 根据观测值筛选行 -- `filter()`
+- 对观测值（行）进行排序 -- `arrange()`
+- 筛选不同变量（列） -- `select()`
+- 根据现有变量生成新的变量 -- `mutate()`
+- 描述统计现有变量 -- `summrise()`
+- 分类统计 -- `group_by()`
+
+**注意**
+
+1. 上述所有的函数均有统一的API，即第一个参数是一个`data.frame`，后续参数描述了你对数据的操作
+2. 在上述函数中使用变量名均不需要使用引用
+3. 上述函数的返回值均为一个`data.frame`
+
+# 根据观测值筛选行 -- `filter()`
+
+## 基本用法
+
+`filter()`可以根据观测值来筛选行（即Excel中的筛选）。其中，第一个参数是你要筛选的数据框的名字，从第二个参数开始的后续参数描述了你的筛选条件。例如，我们可以使用如下命令筛选1月1号的飞机：
+
+```{r}
+filter(flights, month == 1, day == 1)
+```
+
+`filter()`不会改变你的原始数据，如果你想保存你的处理结果，可以将上述表达式赋值给一个新的变量：
+
+```{r}
+jan1 <- filter(flights, month == 1, day == 1)
+```
+
+**如果你又想保存成新的变量，又想输出你的处理结果到屏幕上，你可以用括号将上述表达式括起来：**
+
+```{r, eval=FALSE}
+(jan1 <- filter(flights, month == 1, day == 1))
+```
+
+## 比较
+
+- 为了更好的使用`filter()`，应该学习使用比较运算
+- 对于数值我们有`==, >=, !=, <=, <, >, all.equal()`
+- 对于逻辑向量我们有`&, |`
+
+如果我们要筛选出11月或者12月的航班：
+
+```{r}
+filter(flights, month == 11 | month == 12)
+```
+
+当然，如果你的条件比较多，可以使用一个语法糖`%in%`，比如上述表达式可以写成：
+
+```{r, eval=FALSE}
+filter(flights, month %in% c(11, 12))
+```
+
+## 缺失值
+
+- 我们之前讲过，缺失值是无法正常进行比较的：
+
+```{r}
+NA > 5
+10 == NA
+NA == NA
+```
+
+- 如果要确认一个值是否为缺失值，应该使用`is.na()`
+
+```{r}
+x <- NA
+is.na(x)
+```
+
+- 因为`filter()`本质上只返回条件为真的行，因此那些含有缺失值的行是永远不会被返回的，如果你需要返回含有缺失值的行，你可以：
+
+```{r}
+df <- tibble(x = c(1, NA, 3))
+filter(df, x > 1)
+filter(df, is.na(x) | x > 1)
+```
+
+## `fliter()`中的一些特殊函数
+
+- `cumall(x)` 第一个`TRUE`之前的所有元素
+
+- `cumall(!x)` 第一个`FALSE`之前的所有元素
+
+- `cumany(x)` 第一个`TRUE`之后的所有元素
+
+- `cumany(!x)` 第一个`FALSE`之后的所有元素
+
+# 对观测值（行）进行排序 -- `arrange()`
+
+## 基本用法
+
+`arrange()`的用法和`filter()`基本一致，但是它不做筛选，而是改变行的顺序 （即Excel中的排序）。如果你输入了多个变量名，可以认为指定了多个关键字。
+
+```{r}
+arrange(flights, year, month, day)
+```
+
+**默认情况下，数据是按照升序排列**，如果你需要进行降序排列，可以使用`desc()`函数：
+
+```{r, eval=FALSE}
+arrange(flights, year, desc(month), day)
+```
+
+**不管使用什么排序方式，缺失值永远排在最后！**
+
+# 筛选不同变量（列） -- `select()`
+
+## 基本用法
+
+`select()`的作用就是将你的数据集缩小，只保留你关注的变量。你可以使用变量名进行快速的筛选。
+
+```{r}
+select(flights, year, month, day)
+```
+
+你也可以使用`:`来选择连续的列：
+
+```{r, eval=FALSE}
+select(flights, year:day)
+```
+
+你也可以使用`-`来排除某些列：
+
+```{r, eval=FALSE}
+select(flights, -(year:day))
+```
+
+## `select()`的辅助函数
+
+- `starts_with("abc")` 匹配abc开头的变量名字
+- `ends_with("xyz")` 匹配xyz结尾的变量名字
+- `contains("ijk")` 匹配包含ijk的变量名字
+- `matches("(.)\\1")` 匹配含有重复字符的变量名字
+- `num_range("x", 1:3)` 匹配x1、x2和x3
+- `all_of(vars)` 匹配vars中包含的所有变量
+- `any_of(vars)` 匹配vars中包含的任一变量
+- `where(is.numeric)` 匹配所有是数值类型的变量
+- `everything()` 返回你指定变量外的所有变量
+
+```{r}
+select(flights, time_hour, air_time, everything())
+```
+
+## select的变体-rename
+
+使用rename来重命名
+
+```{r}
+rename(flights, tail_num = tailnum)
+```
+
+# 根据现有变量生成新的变量 -- `mutate()`
+
+## 基本用法
+
+除了对现有数据进行操作，实际操作时，往往需要生成新的变量。可以使用`mutate()`来做
+
+```{r}
+flights_sml <- select(flights, 
+  year:day, 
+  ends_with("delay"), 
+  distance, 
+  air_time
+)
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  speed = distance / air_time * 60
+)
+```
+
+**`mutate()`生成的变量永远在最后！**
+
+---
+
+你可以在`mutate()`中直接使用你刚创建的变量：
+
+```{r}
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
+
+---
+
+如果你只要你创建的变量，可以用`transmute()`，用法和`mutate()`相同：
+
+```{r}
+transmute(flights,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
+
+## 在`mutate()`中使用函数
+
+在使用`mutate()`时你可以使用很多函数，唯一需要记住的是：
+
+**你使用的函数必须是向量化的，即接收一个向量作为输入，并且返回一个相同长度的向量！**
+
+比较常见的函数有：
+
+- 算数运算符 -- `+, -, *, /, ^`
+- 算数函数 -- `mean(), sum(), median(), log(), log2(), log10(), ...`
+- 偏移函数 -- `lead(), lag()` 
+- 比较运算符 -- `<, <=, >, >=, !=, ==`
+
+# 描述统计现有变量 -- `summrise()`
+
+## 基本用法
+
+`summrise()`的作用就是对现有数据集进行描述统计:
+
+```{r}
+summarise(flights, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+`summrise()`在单独使用的时候其实作用并不是特别大，实际操作时，往往需要和`group_by()`进行联用：
+
+```{r}
+by_day <- group_by(flights, year, month, day)
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+在今后的分析中，你们会经常使用到`group_by`和`summarise()`
+
+## 管道运算符（`%>%`）
+
+如果我们要分析每个地点距离和平均延误时间的关系：
+
+```{r, message=FALSE, out.width='50%'}
+by_dest <- group_by(flights, dest)
+delay <- summarise(by_dest,
+  count = n(),
+  dist = mean(distance, na.rm = TRUE),
+  delay = mean(arr_delay, na.rm = TRUE)
+)
+delay <- filter(delay, count > 20, dest != "HNL")
+
+ggplot(data = delay, mapping = aes(x = dist, y = delay)) +
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+```
+
+---
+
+完成上述操作，我们花了3步：
+
+1. 根据地点进行分组；2. 统计每一组内的平均航程、延误时间以及航班数量；3. 去除一些噪声点位
+
+在写这些代码的时候，你往往需要想出一些中间变量，并给他们进行赋值（如`by_dest`和`delay`）。
+**使用管道运算符，可以大幅简化你的代码量，并且使得你的代码更加易读**：
+
+```{r, message=FALSE, out.width='50%'}
+flights %>% 
+  group_by(dest) %>% 
+  summarise(
+    count = n(),
+    dist = mean(distance, na.rm = TRUE),
+    delay = mean(arr_delay, na.rm = TRUE)
+  ) %>% 
+  filter(count > 20, dest != "HNL") %>%
+  ggplot(mapping = aes(x = dist, y = delay)) +
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+```
+
+## 在`summarise()`中使用函数
+
+很多函数可以配合`summarise()`使用，如`dplyr`自带的`count()`, `n()`等等。
+R本身也自带了很多有用的函数，与`summarise()`配合使用可以发挥很好的作用：
+
+- 测度函数 -- `mean()`, `median()`, `sd()`, `IQR()`, `mad()`
+- 位置函数 -- `first()`, `nth()`, `last()`
+- 计数函数 -- `n()`, `n_distinct()`
+
+
+## `ungroup()`
+
+如果你不在需要分组，可以使用`ungroup()`进行还原：
+
+```{r}
+daily <- group_by(flights, year, month, day)
+daily %>% 
+  ungroup() %>%             # no longer grouped by date
+  summarise(flights = n()) 
+```
+
+## `group_by()`的其他用法
+
+找出每组中最差的几个：
+
+```{r}
+flights_sml %>% 
+  group_by(year, month, day) %>%
+  filter(rank(desc(arr_delay)) < 10)
+```
+
+---
+
+找出所有长度大于某个阈值的分组
+
+
+```{r}
+popular_dests <- flights %>% 
+  group_by(dest) %>% 
+  filter(n() > 365)
+popular_dests
+```
+
+--- 
+
+对每组进行统计：
+
+```{r}
+popular_dests %>% 
+  filter(arr_delay > 0) %>% 
+  mutate(prop_delay = arr_delay / sum(arr_delay)) %>% 
+  select(year:day, dest, arr_delay, prop_delay)
+```

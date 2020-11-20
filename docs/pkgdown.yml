@@ -2,6 +2,11 @@ pandoc: 2.7.3
 pkgdown: 1.6.1
 pkgdown_sha: ~
 articles:
-  Rcourse: Rcourse.html
-last_built: 2020-10-23T04:36Z
+  About_R: About_R.html
+  Data_Manipulation: Data_Manipulation.html
+  Data_Transformation: Data_Transformation.html
+  R _Programming: R _Programming.html
+  R_Basics: R_Basics.html
+  R_ggplot2: R_ggplot2.html
+last_built: 2020-11-20T02:06Z
 

@@ -1,0 +1,486 @@
+---
+title: "R Programming"
+output: 
+  rmarkdown::html_vignette:
+vignette: >
+  %\VignetteIndexEntry{R Programming}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = '#>', fig.retina = 2, fig.align = 'center')
+```
+
+```{r, eval=TRUE, echo=FALSE,message=FALSE}
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(nycflights13)
+```
+
+# 函数（Function）
+
+
+## 为什么要使用函数
+
+- 避免复制（do not repeat yourself）
+
+```{r, echo=FALSE}
+library(purrr)
+library(tidyverse)
+```
+
+
+```{r, echo=TRUE, eval=FALSE}
+df <- tibble::tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+
+df$a <- (df$a - min(df$a, na.rm = TRUE)) / 
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$b <- (df$b - min(df$b, na.rm = TRUE)) / 
+  (max(df$b, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$c <- (df$c - min(df$c, na.rm = TRUE)) / 
+  (max(df$c, na.rm = TRUE) - min(df$c, na.rm = TRUE))
+df$d <- (df$d - min(df$d, na.rm = TRUE)) / 
+  (max(df$d, na.rm = TRUE) - min(df$d, na.rm = TRUE))
+```
+
+- 以上代码的作用是将`df`里的每一列标准化到0和1之间
+- 但是复制的时候出错了（`df$b`）
+- 如何有效避免此类问题？
+
+## 将重复的工作转化为函数
+
+- 观察以下代码
+
+```{r, echo=TRUE, eval=FALSE}
+(df$a - min(df$a, na.rm = TRUE)) /
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+```
+
+- 我们需要几个参数？
+- 还能不能再做精简？（毕竟我们计算了3次最大最小值）
+
+```{r}
+rescale01 <- function(x) {
+  rng <- range(x, na.rm = TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+rescale01(c(0, 5, 10))
+```
+
+## 创建函数
+
+- 选择一个合适的函数名（往往这个是最难的）
+- 在`function()`里填入你的参数名（同样要取一个合适的名字）
+- 在函数体中填入你的代码（`function(...){}`）
+- 可以先将流程写好，然后将代码转换成函数
+- 写完函数后，对不同参数进行测试！
+
+```{r}
+rescale01(c(-10, 0, 10))
+rescale01(c(1, 2, 3, NA, 5))
+```
+
+## 使用函数
+
+再回到我们原来的问题，我们现在可以对每一列使用函数
+
+```{r, eval=FALSE}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+同时，如果要修改代码，我们只需在函数体中修改一处即可。
+
+- 有效避免了复制粘贴的错误
+- 这样就完美了吗?
+
+## 函数命名
+
+- 函数尽量使用动词
+- 可以使用`_`来连接多个单词，或者使用驼峰命名法，但是尽可能保持一致
+- 多用注释！(Ctrl+shift+R)
+
+```{r, eval=F}
+# Good
+input_select()
+input_checkbox()
+input_text()
+impute_missing()
+collapse_years()
+# Don't do this!
+T <- FALSE
+c <- 10
+mean <- function(x) sum(x)
+# Never do this!
+col_mins <- function(x, y) {}
+rowMaxes <- function(y, x) {}
+```
+
+# 特殊函数
+
+## 分支函数
+
+- 使用`if`语句来构建函数分支
+
+```{r, eval=FALSE}
+if (condition) {
+  # code executed when condition is TRUE
+} else {
+  # code executed when condition is FALSE
+}
+```
+
+- 使用`if-else`或者`switch`构建多分支
+
+```{r, eval=FALSE}
+if (this) {
+  # do that
+} else if (that) {
+  # do something else
+} else {
+  # 
+}
+
+manipulate_numbers <- function(x, y, op) {
+  switch(op,
+         plus = x + y,
+         minus = x - y,
+         times = x * y,
+         divide = x / y,
+         stop("Unknown op!")
+  )
+}
+```
+
+## 分支函数练习
+
+- 编写一个名为`has_name`的函数，接收一个向量作为参数，返回这个向量中每个元素是否有名称。
+
+```{r, echo=F}
+has_name <- function(x) {
+  nms <- names(x)
+  if (is.null(nms)) {
+    rep(FALSE, length(x))
+  } else {
+    !is.na(nms) & nms != ""
+  }
+}
+```
+
+```{r}
+x <- 1:5
+names(x) <- c("a", "b", NA, "d", "e")
+has_name(x)
+```
+
+- `if`和`ifelse`的区别是啥，请举例说明
+- 用`cut`改写以下函数
+
+```{r, eval=F}
+if (temp <= 0) {
+  "freezing"
+} else if (temp <= 10) {
+  "cold"
+} else if (temp <= 20) {
+  "cool"
+} else if (temp <= 30) {
+  "warm"
+} else {
+  "hot"
+}
+```
+
+## Dot-dot-dot (…)
+
+-用`...`传递任意参数
+
+```{r}
+commas <- function(...) stringr::str_c(..., collapse = ", ")
+commas(letters[1:10])
+
+rule <- function(..., pad = "-") {
+  title <- paste0(...)
+  width <- getOption("width") - nchar(title) - 5
+  cat(title, " ", stringr::str_dup(pad, width), "\n", sep = "")
+}
+rule("Important output")
+```
+
+# 返回值
+
+## 函数返回值
+
+- 显式返回值和隐式返回值
+- R默认会隐式返回你函数体中最后一步运算表达式的结果（不需要显示调用`return()`）
+- 如果要提前返回值，则应该考虑2点：
+
+- 提早返回值会使你的代码更加清晰吗？
+- 你的函数是否可以使用管道运算符？
+
+## 显式返回
+
+- 使得程序更加清晰
+
+```{r, eval=FALSE}
+complicated_function <- function(x, y, z) {
+  if (length(x) == 0 || length(y) == 0) {
+    return(0)
+  }
+    
+  # Complicated code here
+}
+
+f <- function() {
+  if (!x) {
+    return(something_short)
+  }
+
+  # Do 
+  # something
+  # that
+  # takes
+  # many
+  # lines
+  # to
+  # express
+}
+```
+
+## 管道化操作
+
+>Little bunny Foo Foo
+
+>Went hopping through the forest
+
+>Scooping up the field mice
+
+>And bopping them on the head
+
+
+```{r, eval=FALSE}
+bop(
+  scoop(
+    hop(foo_foo, through = forest),
+    up = field_mice
+  ), 
+  on = head
+)
+
+foo_foo %>%
+  hop(through = forest) %>%
+  scoop(up = field_mice) %>%
+  bop(on = head)
+```
+
+
+## 编写可以使用管道运算的函数
+
+- 在使用函数副作用时，用`invisible()`返回
+
+```{r, eval=FALSE}
+show_missings <- function(df) {
+  n <- sum(is.na(df))
+  cat("Missing values: ", n, "\n", sep = "")
+  invisible(df)
+}
+
+mtcars %>% 
+  show_missings() %>% 
+  mutate(mpg = ifelse(mpg < 20, NA, mpg)) %>% 
+  show_missings() 
+```
+
+# 迭代（Iteration） 
+
+## 迭代用途
+
+- 考虑下面的例子：
+```{r}
+library(tibble)
+set.seed(1234)
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+median(df$a)
+median(df$b)
+median(df$c)
+median(df$d)
+```
+
+- 如何用循环做？
+
+## For循环
+
+- 考虑下面的例子：
+```{r}
+set.seed(1234)
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+median(df$a)
+median(df$b)
+median(df$c)
+median(df$d)
+```
+
+```{r}
+output <- vector("double", ncol(df))  # 1. output
+for (i in seq_along(df)) {            # 2. sequence
+  output[[i]] <- median(df[[i]])      # 3. body
+}
+output
+```
+
+## For循环和函数
+
+- 考虑以下代码：
+
+```{r}
+col_median <- function(df) {
+  output <- vector("double", length(df))
+  for (i in seq_along(df)) {
+    output[i] <- median(df[[i]])
+  }
+  output
+}
+col_sd <- function(df) {
+  output <- vector("double", length(df))
+  for (i in seq_along(df)) {
+    output[i] <- sd(df[[i]])
+  }
+  output
+}
+```
+
+- 有更简单的方法吗？
+- 如果我还要做col_mean怎么办？
+- 增加一个参数来传递函数
+
+```{r}
+col_summary <- function(df, fun) {
+  out <- vector("double", length(df))
+  for (i in seq_along(df)) {
+    out[i] <- fun(df[[i]])
+  }
+  out
+}
+```
+
+# `purrr`
+
+## 主要函数（map）
+
+- `map()`，返回`list`
+- `map_lgl()`，返回逻辑向量
+- `map_dfr()`，返回数据框
+- `map_int()`，返回整数向量
+- `map_dbl()`，返回浮点型向量
+- `map_chr()`，返回字符向量
+
+## map代替for循环
+
+```{r}
+set.seed(1234)
+df <- tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+map_dbl(df, mean, na.rm = T)
+map_dbl(df, median)
+```
+
+## 案例分析
+
+```{r, echo=FALSE}
+births <- readRDS('./Data/births.rds')
+```
+
+- 下面展示一个真实的数据处理流程
+- 数据来自[Google BigQuery](https://bigquery.cloud.google.com/table/publicdata:samples.natality)
+- 数据为美国1995-2004年全国的新生儿数据
+- 数据共有`r nrow(births)`行
+- 数据展示：
+
+```{r, echo=FALSE}
+glimpse(births)
+```
+
+- 目标：
+
+1. 计算多胞胎的出生率（plurality > 1）
+2. 分析其出生率的季节和年度变化
+3. 统计其出生率的年际趋势
+
+- 由于数据量较大，可以分年进行处理，使用`split()`函数
+- 使用`map_dfr()`对每个分块进行处理
+
+## 结果
+
+```{r, echo=FALSE, out.width='30%', fig.align='default'}
+births_split <- split(births, births$year)
+# length(births_split)
+# head(births_split[[1]])
+birth_results <- map_dfr(births_split, function(.data){
+    .data %>%
+      mutate(morethan1 = plurality > 1) %>%
+      group_by(state, year, month, morethan1) %>%
+      summarize(multiple_births_count = n()) %>%
+      mutate(total_births = sum(multiple_births_count),
+             multiple_births_proportion =
+               round(multiple_births_count/total_births, 3)) %>%
+      arrange(state, year, month, morethan1)  %>%
+      filter(morethan1)
+  })
+birth_results %>%
+ggplot(aes(multiple_births_proportion))+
+  geom_histogram(color = "white", bins = 30) +
+  geom_vline(xintercept = median(birth_results$multiple_births_proportion),
+             color = "forestgreen", size = 1.5) +
+  ggtitle("Proportion of births with more than one baby (by state, year and month)")
+birth_results <- birth_results %>%
+  group_by(state) %>%
+  mutate(avg = median(multiple_births_proportion),
+         month = as.character(month)) %>%
+  ungroup() %>%
+  mutate(state = forcats::fct_reorder(state, avg)) %>%
+  mutate(season = forcats::fct_collapse(month,
+    winter = c("1", "2", "12"),
+    spring = c("3", "4","5"),
+    summer = c("6", "7", "8"),
+    fall = c("9", "10", "11")
+  ))
+birth_results %>%
+  ggplot(aes(state, multiple_births_proportion)) +
+           geom_point(aes(color = season)) +
+           coord_flip()+
+  geom_point(data = distinct(birth_results, state, avg), aes(state, avg)) +
+  facet_wrap(~year) +
+  theme(axis.text.y = element_text(size = 6))
+birth_results %>%
+  ggplot(aes(season, multiple_births_proportion))+
+  geom_boxplot(aes(color = factor(year)))
+birth_results %>%
+  ggplot(aes(factor(year), multiple_births_proportion))+
+  geom_boxplot(aes(color = factor(season)))
+birth_results %>%
+  ggplot(aes(year, multiple_births_proportion))+
+  geom_jitter(width = 0.2, alpha = 0.1) +
+  stat_smooth(method = "lm")
+```
